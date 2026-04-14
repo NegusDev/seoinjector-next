@@ -1,41 +1,46 @@
 # @negusdev/seoinjector-next
 
+[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
+[![npm version](https://img.shields.io/npm/v/@negusdev/seoinjector-next.svg?style=flat-square)](https://www.npmjs.com/package/@negusdev/seoinjector-next)
+
 Next.js SEO integration for SEO Injector.
 
-Fetch and inject SEO metadata (title, description, Open Graph, Twitter, hreflang, canonical) into your Next.js App Router using a simple API.
+Fetch and inject SEO metadata — title, description, Open Graph, Twitter, hreflang, and canonical — into your Next.js App Router pages via a simple API-first interface. Designed for server-side use only, so API keys stay off the client at all times.
 
----
+## Table of Contents
 
-## Features
+- [Background](#background)
+- [Install](#install)
+- [Usage](#usage)
+- [API](#api)
+- [Maintainers](#maintainers)
+- [Contributing](#contributing)
+- [License](#license)
 
-* Works with **Next.js App Router**
-* Supports **dynamic routes**
-* Handles **Open Graph & Twitter metadata**
-* Supports **hreflang & canonical URLs**
-* Built-in **fallback handling**
-* Optional **JSON-LD (schema) support**
-* Minimal setup, API-first design
+## Background
 
----
+Managing SEO metadata across a large Next.js application is repetitive and error-prone. This package offloads that work to SEO Injector — a centralised metadata management service — and maps its API responses directly to the `Metadata` object expected by Next.js App Router's `generateMetadata` convention.
 
-## Installation
+It handles Open Graph, Twitter Cards, hreflang alternate links, canonical URLs, and JSON-LD schema out of the box, with safe fallback behaviour when the API is unavailable.
+
+## Install
+
+Requires **Next.js 14+** (App Router), **Node.js 18+**.
 
 ```bash
 npm install @negusdev/seoinjector-next
 ```
 
----
-
-## Environment Setup
+Add the following to your `.env` file:
 
 ```env
 SEOINJECTOR_SITE_ID=your-site-id
 SEOINJECTOR_API_URL=https://api.seoinjector.com/api
 ```
 
----
+## Usage
 
-## Quick Start
+### Basic
 
 ```ts
 import type { Metadata } from 'next'
@@ -55,9 +60,7 @@ export default function Page() {
 }
 ```
 
----
-
-## Dynamic Routes
+### Dynamic Routes
 
 ```ts
 import type { Metadata } from 'next'
@@ -79,11 +82,9 @@ export async function generateMetadata({
 }
 ```
 
----
+### Fallback Metadata
 
-## Fallback Metadata
-
-Use fallback values when SEO data is missing or API fails.
+Provide fallback values used when SEO data is missing or the API call fails:
 
 ```ts
 return generateSEOMetadata({
@@ -98,33 +99,9 @@ return generateSEOMetadata({
 })
 ```
 
----
+### JSON-LD (Schema)
 
-## Advanced Usage
-
-### Manual Fetch + Mapping
-
-```ts
-import {
-  fetchSEOData,
-  mapApiResponseToMetadata
-} from '@negusdev/seoinjector-next'
-
-const data = await fetchSEOData({
-  pathname: '/about',
-  locale: 'en-US',
-  siteId: process.env.SEOINJECTOR_SITE_ID!,
-  apiBaseUrl: process.env.SEOINJECTOR_API_URL!,
-})
-
-const metadata = mapApiResponseToMetadata(data)
-```
-
----
-
-## JSON-LD (Schema Support)
-
-Next.js does not include JSON-LD in its Metadata API. Use the helper below.
+Next.js does not expose JSON-LD through its `Metadata` API. Use `getSchemaJson` alongside `fetchSEOData` to inject it manually:
 
 ```tsx
 import { fetchSEOData, getSchemaJson } from '@negusdev/seoinjector-next'
@@ -153,110 +130,93 @@ export default async function Page() {
 }
 ```
 
----
+### Manual Fetch + Mapping
+
+For cases where you need direct access to the raw API response:
+
+```ts
+import {
+  fetchSEOData,
+  mapApiResponseToMetadata,
+} from '@negusdev/seoinjector-next'
+
+const data = await fetchSEOData({
+  pathname: '/about',
+  locale: 'en-US',
+  siteId: process.env.SEOINJECTOR_SITE_ID!,
+  apiBaseUrl: process.env.SEOINJECTOR_API_URL!,
+})
+
+const metadata = mapApiResponseToMetadata(data)
+```
 
 ## API
 
 ### `generateSEOMetadata(options)`
 
-High-level helper for most use cases.
+High-level helper covering most use cases. Fetches SEO data and returns a Next.js `Metadata` object. Returns `{}` safely if the API call fails.
 
 ```ts
 generateSEOMetadata(options: GenerateSEOMetadataOptions): Promise<Metadata>
 ```
 
----
-
 ### `fetchSEOData(options)`
 
-Fetch raw SEO data from the SEO Injector API.
+Fetches raw SEO data from the SEO Injector API. Returns `null` on failure.
 
 ```ts
 fetchSEOData(options: FetchSEODataOptions): Promise<SEOInjectorApiResponse | null>
 ```
 
----
-
 ### `mapApiResponseToMetadata(data)`
 
-Convert API response into Next.js `Metadata`.
+Converts an `SEOInjectorApiResponse` into a Next.js `Metadata` object. Handles OG → standard meta and Twitter → OG fallback chains automatically.
 
 ```ts
-mapApiResponseToMetadata(data): Metadata
+mapApiResponseToMetadata(data: SEOInjectorApiResponse | null): Metadata
 ```
-
----
 
 ### `getSchemaJson(data)`
 
-Extract JSON-LD schema.
+Extracts a serialised JSON-LD string from the API response, ready for use in a `<script type="application/ld+json">` tag.
 
 ```ts
-getSchemaJson(data): string | null
+getSchemaJson(data: SEOInjectorApiResponse | null): string | null
 ```
 
----
-
-## Options
+### Options
 
 ```ts
 type GenerateSEOMetadataOptions = {
-  pathname: string
-  locale?: string
-  siteId: string
-  apiKey?: string
-  apiBaseUrl: string
-  timeoutMs?: number
-  revalidate?: number | false
-  fallback?: Metadata
+  pathname: string             // Required. The page path (e.g. '/about')
+  locale?: string              // BCP 47 locale tag (e.g. 'en-US')
+  siteId: string               // Your SEO Injector site ID
+  apiKey?: string              // Optional API key
+  apiBaseUrl: string           // Base URL for the SEO Injector API
+  timeoutMs?: number           // Request timeout in milliseconds
+  revalidate?: number | false  // Next.js revalidation interval
+  fallback?: Metadata          // Fallback metadata if the API fails
 }
 ```
 
----
+### Behaviour
 
-## Behavior
+- Returns `{}` if the API fails — safe by default, no thrown errors
+- Fallback chain: OG → standard meta → fallback value
+- Fallback chain: Twitter → OG → standard meta → fallback value
+- Uses canonical URL when OG URL is missing
+- Splits comma-separated keyword strings into arrays
 
-* Returns `{}` if API fails (safe by default)
-* Falls back automatically:
+## Maintainers
 
-  * OG → standard meta
-  * Twitter → OG or standard meta
-* Uses canonical URL when OG URL is missing
-* Splits keywords into array when comma-separated
+[@negusdev](https://github.com/negusdev)
 
----
+## Contributing
 
-## Requirements
+Questions and issues are welcome — please [open an issue](https://github.com/negusdev/seoinjector-next/issues).
 
-* Next.js 14+
-* App Router (`app/` directory)
-* Node.js 18+
-
----
-
-## Notes
-
-* Designed for **server-side usage only** (`generateMetadata`)
-* API keys are never exposed to the client
-* Works with any deployment (Vercel, Node, Docker, etc.)
-
----
-
-## Roadmap
-
-* JSON-LD React component
-* Pages Router support
-* Edge runtime optimization
-* Plugin integrations (CMS, headless setups)
-
----
+PRs are accepted. Please ensure your changes are consistent with the existing code style and that any new behaviour is covered by tests before submitting.
 
 ## License
 
-MIT
-
----
-
-## Author
-
-SEO Injector
+MIT © SEO Injector
